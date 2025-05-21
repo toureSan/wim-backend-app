@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build-and-test:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -26,4 +26,9 @@ jobs:
         run: npm run test --if-present
 
       - name: Build
-        run: npm run buildfdsf
+        run: npm run build
+
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: npx railway up 
