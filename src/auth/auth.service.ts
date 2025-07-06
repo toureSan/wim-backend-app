@@ -1,9 +1,9 @@
-import { Injectable, ConflictException, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { SupabaseService } from '../supabase/supabase.service';
 import { RegisterDto } from './dto/register.dto';
-import { ProviderRegisterDto } from './dto/provider-register.dto';
-import { User } from './interfaces/user.interface';
+import { User } from './interfaces/user.interface';;
+import { Express } from 'express';
 
 @Injectable()
 export class AuthService {
@@ -12,37 +12,6 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async validateUser(email: string, password: string): Promise<User | null> {
-    const { data, error } = await this.supabaseService
-      .getClient()
-      .auth
-      .signInWithPassword({
-        email,
-        password,
-      });
-
-    if (error || !data.user) {
-      return null;
-    }
-
-    const { data: profile } = await this.supabaseService
-      .getClient()
-      .from('profiles')
-      .select('id, email, role')
-      .eq('id', data.user.id)
-      .single();
-
-    if (!profile) {
-      return null;
-    }
-
-    return {
-      id: profile.id,
-      email: profile.email,
-      role: profile.role,
-    };
-  }
-
   async login(user: User) {
     const payload = { sub: user.id, email: user.email, role: user.role };
     return {
@@ -50,7 +19,32 @@ export class AuthService {
     };
   }
 
-  async register(email: string, password: string, role: 'client' | 'provider') {
+  async register(registerDto: RegisterDto, file?: any) {
+    let profile_picture_url = registerDto.profile_picture_url;
+
+    if (file) {
+      // Upload du fichier dans Supabase Storage
+      const supabase = this.supabaseService.getClient();
+      const { data, error } = await supabase.storage
+        .from('profile-pictures')
+        .upload(`avatars/${Date.now()}_${file.originalname}`, file.buffer, {
+          contentType: file.mimetype,
+        });
+
+      if (error) {
+        if (error.message.includes('User already registered')) {
+          throw new BadRequestException('Cet utilisateur existe déjà');
+        }
+        throw new UnauthorizedException(error.message || 'Erreur lors de l\'inscription');
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('profile-pictures')
+        .getPublicUrl(data.path);
+      profile_picture_url = publicUrlData.publicUrl;
+    }
+
+    const { email, password, role, first_name, last_name, address, npa, entreprise_adress } = registerDto;
     const { data, error } = await this.supabaseService
       .getClient()
       .auth
@@ -64,7 +58,7 @@ export class AuthService {
     }
 
     if (data.user) {
-      // Créer le profil utilisateur
+      // Créer le profil utilisateur enrichi
       const { error: profileError } = await this.supabaseService
         .getClient()
         .from('profiles')
@@ -72,6 +66,12 @@ export class AuthService {
           id: data.user.id,
           email,
           role,
+          first_name,
+          last_name,
+          address,
+          npa,
+          entreprise_adress,
+          profile_picture_url,
         });
 
       if (profileError) {

@@ -51,4 +51,12 @@ export class ProviderRegisterDto extends RegisterDto {
     saturday?: { start: string; end: string }[];
     sunday?: { start: string; end: string }[];
   };
+
+  @IsString()
+  @IsOptional()
+  npa?: string;
+
+  @IsString()
+  @IsOptional()
+  entreprise_adress?: string;
 } 
