@@ -1,13 +1,24 @@
-import { Controller, Post, Body, Headers, UseGuards, Request, RawBodyRequest } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Headers,
+  UseGuards,
+  Request,
+  RawBodyRequest,
+} from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Request as ExpressRequest } from 'express';
 import { User } from '../auth/interfaces/user.interface';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 interface RequestWithUser extends ExpressRequest {
   user: User;
 }
 
+@ApiBearerAuth()
+@ApiTags('payments')
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
@@ -31,4 +42,4 @@ export class PaymentsController {
   ): Promise<{ url: string }> {
     return this.paymentsService.createCheckoutSession(req.user.id, plan);
   }
-} 
+}

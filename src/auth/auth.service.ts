@@ -1,4 +1,9 @@
-import { Injectable, ConflictException, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { SupabaseService } from '../supabase/supabase.service';
 import { RegisterDto } from './dto/register.dto';
@@ -15,8 +20,7 @@ export class AuthService {
   async validateUser(email: string, password: string): Promise<User | null> {
     const { data, error } = await this.supabaseService
       .getClient()
-      .auth
-      .signInWithPassword({
+      .auth.signInWithPassword({
         email,
         password,
       });
@@ -51,16 +55,13 @@ export class AuthService {
   }
 
   async register(email: string, password: string, role: 'client' | 'provider') {
-    const { data, error } = await this.supabaseService
-      .getClient()
-      .auth
-      .signUp({
-        email,
-        password,
-      });
+    const { data, error } = await this.supabaseService.getClient().auth.signUp({
+      email,
+      password,
+    });
 
     if (error) {
-      throw new UnauthorizedException('Erreur lors de l\'inscription');
+      throw new UnauthorizedException("Erreur lors de l'inscription");
     }
 
     if (data.user) {
@@ -85,6 +86,6 @@ export class AuthService {
       };
     }
 
-    throw new UnauthorizedException('Erreur lors de l\'inscription');
+    throw new UnauthorizedException("Erreur lors de l'inscription");
   }
-} 
+}

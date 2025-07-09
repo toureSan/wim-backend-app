@@ -1,4 +1,14 @@
-import { IsString, IsEmail, IsPhoneNumber, IsOptional, IsEnum, IsNumber, IsArray, IsDate, IsObject } from 'class-validator';
+import {
+  IsString,
+  IsEmail,
+  IsPhoneNumber,
+  IsOptional,
+  IsEnum,
+  IsNumber,
+  IsArray,
+  IsDate,
+  IsObject,
+} from 'class-validator';
 
 export class CreateUserDto {
   @IsString()
@@ -14,9 +24,12 @@ export class CreateUserDto {
   phone: string;
 
   @IsString()
+  password: string;
+
+  @IsString()
   address: string;
 
-  @IsEnum(['client', 'prestataire'])
+  @IsEnum(['client', 'provider', 'admin'])
   role: string;
 
   @IsOptional()
@@ -66,4 +79,4 @@ export class CreateUserDto {
   @IsArray()
   @IsString({ each: true })
   services?: string[];
-} 
+}

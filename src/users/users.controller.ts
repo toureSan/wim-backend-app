@@ -1,37 +1,31 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Request,
+  UnauthorizedException,
+  BadRequestException,
+  Query,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+@ApiBearerAuth()
+@ApiTags('users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
   async create(@Body() createUserDto: CreateUserDto) {
-    console.log('Received create user request with data:', createUserDto);
-    if (createUserDto.role === 'prestataire') {
-      this.validateProviderData(createUserDto);
-    }
-
-    // Validate service rate if provided
-    if (createUserDto.service_rate !== undefined && createUserDto.service_rate <= 0) {
-      throw new BadRequestException('Service rate must be greater than 0');
-    }
-
-    // Validate service radius if provided
-    if (createUserDto.service_radius !== undefined && createUserDto.service_radius <= 0) {
-      throw new BadRequestException('Service radius must be greater than 0');
-    }
-
-    try {
-      const result = await this.usersService.create(createUserDto);
-      console.log('User created successfully:', result);
-      return result;
-    } catch (error) {
-      console.error('Error creating user:', error);
-      throw error;
-    }
+    return this.usersService.create(createUserDto);
   }
 
   private validateProviderData(createUserDto: CreateUserDto) {
@@ -41,17 +35,21 @@ export class UsersController {
       'service_radius',
       'experience_description',
       'services',
-      'start_date'
+      'start_date',
     ];
 
     for (const field of requiredFields) {
       if (!createUserDto[field]) {
-        throw new BadRequestException(`Le champ ${field} est obligatoire pour un prestataire`);
+        throw new BadRequestException(
+          `Le champ ${field} est obligatoire pour un prestataire`,
+        );
       }
     }
 
     if (!createUserDto.services || createUserDto.services.length === 0) {
-      throw new BadRequestException('Un prestataire doit proposer au moins un service');
+      throw new BadRequestException(
+        'Un prestataire doit proposer au moins un service',
+      );
     }
 
     if (createUserDto.service_rate && createUserDto.service_rate <= 0) {
@@ -59,7 +57,9 @@ export class UsersController {
     }
 
     if (createUserDto.service_radius && createUserDto.service_radius <= 0) {
-      throw new BadRequestException('Le rayon de service doit être supérieur à 0');
+      throw new BadRequestException(
+        'Le rayon de service doit être supérieur à 0',
+      );
     }
   }
 
@@ -72,8 +72,10 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Get()
-  findAll() {
-    return this.usersService.findAll();
+  findAll(@Query('page') page = '1', @Query('limit') limit = '10') {
+    const pageNumber = parseInt(page, 10);
+    const limitNumber = parseInt(limit, 10);
+    return this.usersService.findAll(pageNumber, limitNumber);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -87,25 +89,26 @@ export class UsersController {
   async update(
     @Param('id') id: string,
     @Body() updateUserDto: Partial<CreateUserDto>,
-    @Request() req
+    @Request() req,
   ) {
     const userProfile = await this.usersService.findOne(id);
     if (userProfile['user_id'] !== req.user.sub) {
-      throw new UnauthorizedException('Vous ne pouvez modifier que votre propre profil');
+      throw new UnauthorizedException(
+        'Vous ne pouvez modifier que votre propre profil',
+      );
     }
     return this.usersService.update(id, updateUserDto);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  async remove(
-    @Param('id') id: string,
-    @Request() req
-  ) {
+  async remove(@Param('id') id: string, @Request() req) {
     const userProfile = await this.usersService.findOne(id);
     if (userProfile['user_id'] !== req.user.sub) {
-      throw new UnauthorizedException('Vous ne pouvez supprimer que votre propre profil');
+      throw new UnauthorizedException(
+        'Vous ne pouvez supprimer que votre propre profil',
+      );
     }
     return this.usersService.remove(id);
   }
-} 
+}

@@ -1,13 +1,24 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Request as ExpressRequest } from 'express';
 import { User } from '../auth/interfaces/user.interface';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 interface RequestWithUser extends ExpressRequest {
   user: User;
 }
 
+@ApiBearerAuth()
+@ApiTags('notifications')
 @Controller('notifications')
 @UseGuards(JwtAuthGuard)
 export class NotificationsController {
@@ -22,4 +33,4 @@ export class NotificationsController {
   async markAsRead(@Param('id') id: string, @Request() req: RequestWithUser) {
     return this.notificationsService.markAsRead(id, req.user.id);
   }
-} 
+}

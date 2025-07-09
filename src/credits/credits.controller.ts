@@ -1,8 +1,19 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { CreditsService } from './credits.service';
 import { ContactProviderDto } from './dto/contact-provider.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+@ApiBearerAuth()
+@ApiTags('credits')
 @Controller('credits')
 @UseGuards(JwtAuthGuard)
 export class CreditsController {
@@ -27,8 +38,8 @@ export class CreditsController {
   @Post(':userId/add')
   async addCredits(
     @Param('userId') userId: string,
-    @Body('amount') amount: number
+    @Body('amount') amount: number,
   ): Promise<void> {
     await this.creditsService.addCredits(userId, amount);
   }
-} 
+}

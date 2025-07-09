@@ -8,6 +8,10 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { SupabaseModule } from './supabase/supabase.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { ServiceCategoriesModule } from './service_categories/service_categories.module';
+import { ServicesModule } from './services/services.module';
+import { ProvidersModule } from './providers/providers.module';
+import { ServiceRequestsModule } from './service_requests/service_requests.module';
 
 @Module({
   imports: [
@@ -20,6 +24,10 @@ import { AppService } from './app.service';
     CreditsModule,
     PaymentsModule,
     NotificationsModule,
+    ServiceCategoriesModule,
+    ServicesModule,
+    ProvidersModule,
+    ServiceRequestsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

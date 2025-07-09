@@ -1,7 +1,14 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { GeoService } from './services/geo.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { ProvidersService } from 'src/providers/providers.service';
+import { UserRole } from './enums/user-role.enum';
 
 interface Coordinates {
   lat: number;
@@ -13,25 +20,55 @@ export class UsersService {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly geoService: GeoService,
+    private readonly providersService: ProvidersService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<any> {
+    const { data: existingUser, error: searchError } =
+      await this.supabaseService
+        .getClient()
+        .from('profiles')
+        .select('id')
+        .eq('email', createUserDto.email)
+        .single();
+
+    if (existingUser) {
+      throw new BadRequestException(
+        'Un utilisateur avec cet email existe déjà.',
+      );
+    }
+
+    const { data: registerData, error: errorRegister } =
+      await this.supabaseService.getClient().auth.signUp({
+        email: createUserDto.email,
+        password: createUserDto.password,
+      });
+
+    if (errorRegister) {
+      throw new UnauthorizedException("Erreur lors de l'inscription");
+    }
+
     // Geocode address if provided
     let coordinates: Coordinates | null = null;
     if (createUserDto.address) {
       try {
-        coordinates = await this.geoService.geocodeAddress(createUserDto.address);
+        coordinates = await this.geoService.geocodeAddress(
+          createUserDto.address,
+        );
       } catch (error) {
         console.warn('Geocoding failed:', error.message);
         // Continue without coordinates
       }
     }
 
+    const { password, ...registerDto } = createUserDto;
+
     const { data, error } = await this.supabaseService
       .getClient()
       .from('profiles')
       .insert({
-        ...createUserDto,
+        id: registerData.user?.id,
+        ...registerDto,
         ...(coordinates && {
           latitude: coordinates.lat,
           longitude: coordinates.lng,
@@ -44,29 +81,82 @@ export class UsersService {
       console.error('Supabase error:', error);
       throw new BadRequestException(error.message);
     }
+
+    console.log('registerData.user?.id', registerData.user?.id);
+    console.log('profile data', data.id);
+
+    if (createUserDto.role === UserRole.PROVIDER) {
+      await this.providersService.createProvider(data.id);
+    }
+
     return data;
   }
 
-  async findAll(): Promise<any[]> {
-    const { data, error } = await this.supabaseService
+  async findAll(page = 1, limit = 10): Promise<any> {
+    const offset = (page - 1) * limit;
+
+    const {
+      data: profiles,
+      error,
+      count,
+    } = await this.supabaseService
       .getClient()
       .from('profiles')
-      .select('*');
+      .select(`*, providers (*)`, { count: 'exact' })
+      .range(offset, offset + limit - 1);
 
     if (error) throw new BadRequestException(error.message);
-    return data;
+
+    const enrichedProfiles = profiles.map((profile) => {
+      const isPrestataire = profile.role === 'provider';
+      const providerData =
+        isPrestataire && profile.providers?.length > 0
+          ? profile.providers[0]
+          : {};
+
+      const { providers, ...profileWithoutProviders } = profile;
+
+      return {
+        ...profileWithoutProviders,
+        ...(isPrestataire ? { provider: providerData } : {}),
+      };
+    });
+
+    // 3. Retourner un résultat paginé
+    return {
+      total: count,
+      page,
+      limit,
+      data: enrichedProfiles,
+    };
   }
 
   async findOne(id: string): Promise<any> {
-    const { data, error } = await this.supabaseService
+    const { data: profile, error } = await this.supabaseService
       .getClient()
       .from('profiles')
-      .select('*')
+      .select('*, providers (*)')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
     if (error) throw new BadRequestException(error.message);
-    return data;
+
+    if (!profile) {
+      throw new BadRequestException('Utilisateur non trouvé');
+    }
+
+    const isPrestataire = profile.role === 'provider';
+    const providerData =
+      isPrestataire && profile.providers?.length > 0
+        ? profile.providers[0]
+        : {};
+
+    const { providers, ...profileWithoutProviders } = profile;
+
+    return {
+      ...profileWithoutProviders,
+      ...(isPrestataire ? { provider: providerData } : {}),
+    };
   }
 
   async findByUserId(userId: string): Promise<any> {
@@ -81,12 +171,17 @@ export class UsersService {
     return data;
   }
 
-  async update(id: string, updateUserDto: Partial<CreateUserDto>): Promise<any> {
+  async update(
+    id: string,
+    updateUserDto: Partial<CreateUserDto>,
+  ): Promise<any> {
     // Geocode address if provided
     let coordinates: Coordinates | null = null;
     if (updateUserDto.address) {
       try {
-        coordinates = await this.geoService.geocodeAddress(updateUserDto.address);
+        coordinates = await this.geoService.geocodeAddress(
+          updateUserDto.address,
+        );
       } catch (error) {
         console.warn('Geocoding failed:', error.message);
         // Continue without coordinates
@@ -137,10 +232,12 @@ export class UsersService {
     const { data, error } = await this.supabaseService
       .getClient()
       .from('profiles')
-      .select(`
+      .select(
+        `
         *,
         providers (*)
-      `)
+      `,
+      )
       .eq('id', id)
       .single();
 
@@ -157,7 +254,8 @@ export class UsersService {
       .select()
       .single();
 
-    if (error) throw new BadRequestException('Erreur lors de la mise à jour du profil');
+    if (error)
+      throw new BadRequestException('Erreur lors de la mise à jour du profil');
     return data;
   }
 
@@ -169,15 +267,20 @@ export class UsersService {
     const query = this.supabaseService
       .getClient()
       .from('profiles')
-      .select(`
+      .select(
+        `
         *,
         providers (*)
-      `)
+      `,
+      )
       .eq('role', 'provider')
       .eq('is_available', true);
 
     if (searchParams.service_description) {
-      query.ilike('providers.service_description', `%${searchParams.service_description}%`);
+      query.ilike(
+        'providers.service_description',
+        `%${searchParams.service_description}%`,
+      );
     }
 
     if (searchParams.service_rate) {
@@ -190,7 +293,10 @@ export class UsersService {
 
     const { data, error } = await query;
 
-    if (error) throw new BadRequestException('Erreur lors de la recherche des providers');
+    if (error)
+      throw new BadRequestException(
+        'Erreur lors de la recherche des providers',
+      );
     return data;
   }
 
@@ -203,7 +309,10 @@ export class UsersService {
       .select()
       .single();
 
-    if (error) throw new BadRequestException('Erreur lors de la mise à jour de la disponibilité');
+    if (error)
+      throw new BadRequestException(
+        'Erreur lors de la mise à jour de la disponibilité',
+      );
     return data;
   }
-} 
+}
