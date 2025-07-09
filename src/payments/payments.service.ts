@@ -7,6 +7,9 @@ type SubscriptionPlan = 'basic' | 'premium';
 
 @Injectable()
 export class PaymentsService {
+  createSubscription(id: string, plan: string) {
+    throw new Error('Method not implemented.');
+  }
   private stripe: Stripe;
 
   constructor(
