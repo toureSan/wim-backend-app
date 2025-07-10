@@ -23,7 +23,7 @@ export class UsersService {
     private readonly providersService: ProvidersService,
   ) {}
 
-  async create(createUserDto: CreateUserDto): Promise<any> {
+  async create(createUserDto: CreateUserDto): Promise<CreateUserDto> {
     const { data: existingUser, error: searchError } =
       await this.supabaseService
         .getClient()
@@ -103,6 +103,7 @@ export class UsersService {
       .getClient()
       .from('profiles')
       .select(`*, providers (*)`, { count: 'exact' })
+      .eq('role', 'provider')
       .range(offset, offset + limit - 1);
 
     if (error) throw new BadRequestException(error.message);
@@ -164,7 +165,7 @@ export class UsersService {
       .getClient()
       .from('profiles')
       .select('*')
-      .eq('user_id', userId)
+      .eq('id', userId)
       .single();
 
     if (error) throw new BadRequestException(error.message);

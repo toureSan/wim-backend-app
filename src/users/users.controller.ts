@@ -28,49 +28,15 @@ export class UsersController {
     return this.usersService.create(createUserDto);
   }
 
-  private validateProviderData(createUserDto: CreateUserDto) {
-    const requiredFields = [
-      'service_description',
-      'service_rate',
-      'service_radius',
-      'experience_description',
-      'services',
-      'start_date',
-    ];
+ 
 
-    for (const field of requiredFields) {
-      if (!createUserDto[field]) {
-        throw new BadRequestException(
-          `Le champ ${field} est obligatoire pour un prestataire`,
-        );
-      }
-    }
-
-    if (!createUserDto.services || createUserDto.services.length === 0) {
-      throw new BadRequestException(
-        'Un prestataire doit proposer au moins un service',
-      );
-    }
-
-    if (createUserDto.service_rate && createUserDto.service_rate <= 0) {
-      throw new BadRequestException('Le tarif horaire doit être supérieur à 0');
-    }
-
-    if (createUserDto.service_radius && createUserDto.service_radius <= 0) {
-      throw new BadRequestException(
-        'Le rayon de service doit être supérieur à 0',
-      );
-    }
-  }
-
-  @UseGuards(JwtAuthGuard)
   @Get('profile')
   async getProfile(@Request() req) {
     console.log('Getting profile for user:', req.user);
     return this.usersService.findByUserId(req.user.id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  
   @Get()
   findAll(@Query('page') page = '1', @Query('limit') limit = '10') {
     const pageNumber = parseInt(page, 10);
