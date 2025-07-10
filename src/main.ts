@@ -9,7 +9,14 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
 
   app.useGlobalPipes(new ValidationPipe());
+  app.enableCors({
+    origin: [
+      'http://localhost:5173',
+      'https://wim-tech.com/'
 
+    ],
+    credentials: true,
+  });
   const config = new DocumentBuilder()
     .setTitle('Wim app API')
     .setDescription('The Wim app API description')
