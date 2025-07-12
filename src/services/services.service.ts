@@ -6,10 +6,14 @@ import {
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { SupabaseService } from 'src/supabase/supabase.service';
+import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class ServicesService {
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(
+    private supabaseService: SupabaseService,
+    private usersService: UsersService,
+  ) {}
   async create(createServiceDto: CreateServiceDto) {
     const { category_id, provider_id } = createServiceDto;
 
@@ -66,12 +70,29 @@ export class ServicesService {
       .select('*, providers (*), service_categories (*)', { count: 'exact' })
       .range(from, to);
 
+    let servicesData;
+
+    if (data && data?.length > 0) {
+      servicesData = await Promise.all(
+        data?.map(async (service) => {
+          if (service.providers.profile_id) {
+            const profile = await this.usersService.findOne(
+              service.providers.profile_id,
+            );
+
+            const { providers, ...serviceData } = service;
+            return { ...serviceData, provider: profile };
+          }
+        }),
+      );
+    }
+
     if (error) {
       throw new BadRequestException(error.message);
     }
 
     return {
-      data,
+      data: servicesData,
       pagination: {
         total: count,
         page,
